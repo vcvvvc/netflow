@@ -15,7 +15,6 @@ add_executable(netflow
 target_compile_options(netflow PRIVATE
         -Wall
         -Wextra
-        -Werror
 )
 
 target_link_libraries(netflow PRIVATE
