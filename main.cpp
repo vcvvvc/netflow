@@ -7,17 +7,11 @@
 
 #include "util/putout.h"
 
-struct FlowKey {
-    uint32_t src_ip;
-    uint32_t dst_ip;
-    uint16_t src_port;
-    uint16_t dst_port;
-    uint8_t proto;
-};
 
 std::string tcp_pcap_file;
 
-int FlowKey_TCP(pcap_t* pt) {
+int put_FlowKey(pcap_t* pt) {
+    FlowKey* key = new FlowKey{};
     pcap_pkthdr* header = nullptr;
     const u_char* data = nullptr;
     bool next_ex = true;
@@ -27,11 +21,35 @@ int FlowKey_TCP(pcap_t* pt) {
         ex = pcap_next_ex(pt, &header, &data);
         switch (ex) {
             case 1:
-                put_mac(header, data);
-                put_packet_len(header);
-                put_flow_key(header, data);
+                //14 是“Ethernet 头结束位置”，34 是“Ethernet + IPv4 最小头结束位置”
+                if (header->caplen < 34) {
+                    break;
+                }
+                std::cout << "put_packet_len: " << header->caplen << std::endl;
 
-                count++;
+                // 1、判断v4 / v6
+                if ((data[12] << 8 | data[13]) == 0x0800) {
+                    std::cout << "ipv4" << std::endl;
+
+                    // tcp / udp
+                    if ( data[23] == 6) {
+                        std::cout << "tcp" << std::endl;
+                        put_mac(header, data);
+                        tcp_flow_key(header, data, key);
+                        count++;
+                    }
+                    else if (data[23] == 17) {
+                        std::cout << "udp" << std::endl;
+                    } else {
+                        return 0;
+                    }
+
+                }
+                else if ((data[12] << 8 | data[13]) == 0x86dd) {
+                    std::cout << "ipv6" << std::endl;
+                }
+
+
                 break;
             case -2:
                 std::cout << "包数量: " << count << std::endl;
@@ -50,6 +68,7 @@ int FlowKey_TCP(pcap_t* pt) {
         }
 
     }
+    delete key;
     return 0;
 }
 
@@ -75,7 +94,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    FlowKey_TCP(pt);
+    put_FlowKey(pt);
 
     return 0;
 }
