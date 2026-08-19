@@ -5,6 +5,7 @@ struct FlowKey {
     uint16_t dst_port;
     uint8_t proto;
 };
+
 void tcp_flow_key(const pcap_pkthdr* header, const u_char* data, FlowKey* key) {
 
     if (header->caplen < 15) {
@@ -68,32 +69,21 @@ void put_packet_len(const pcap_pkthdr* header) {
     std::cout << "put_packet_len: " << header->caplen << std::endl;
 }
 
-int put_mac(const pcap_pkthdr* header, const u_char* data) {
-    if ( header->caplen < 12) {
-        std::cout << "pcap_next_ex() failed: caplen < 12 = " << header->caplen << std::endl;
-        return -1;
-    }
+int put_mac(const pcap_pkthdr*, const u_char* data) {
+    const auto print_mac = [](const char* label, const u_char* mac) {
+        std::cout << label << std::hex << std::setfill('0');
+        for (int i = 0; i < 6; ++i) {
+            if (i > 0) {
+                std::cout << ':';
+            }
+            std::cout << std::setw(2)
+                      << static_cast<unsigned int>(mac[i]);
+        }
+        std::cout << '\n';
+    };
 
-    for (int i = 0; i < 6; i++) {
-        if (i > 0) {
-            std::cout << ":";
-        }
-        else if (i == 0) {
-            std::cout << "dest_mac: ";
-        }
-        std::cout << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(data[i]);
-    }
-    std::cout << std::dec << std::endl;
-
-    for (int i = 6;i < 12; i++) {
-        if (i > 6) {
-            std::cout << ":";
-        }
-        else if (i == 6) {
-            std::cout << "src_mac: ";
-        }
-        std::cout << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(data[i]);
-    }
-    std::cout << std::dec << std::endl;
+    print_mac("dest_mac: ", data);
+    print_mac("src_mac: ", data + 6);
+    std::cout << std::dec;
     return 1;
 }

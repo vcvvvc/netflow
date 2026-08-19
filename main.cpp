@@ -20,15 +20,23 @@ int put_FlowKey(pcap_t* pt) {
     while (next_ex) {
         ex = pcap_next_ex(pt, &header, &data);
         switch (ex) {
-            case 1:
-                //14 是“Ethernet 头结束位置”，34 是“Ethernet + IPv4 最小头结束位置”
-                if (header->caplen < 34) {
+            case 1: {
+                // Ethernet 头结束位置为 14，先保证可以读取 EtherType。
+                if (header->caplen < 14) {
                     break;
                 }
                 std::cout << "put_packet_len: " << header->caplen << std::endl;
 
                 // 1、判断v4 / v6
-                if ((data[12] << 8 | data[13]) == 0x0800) {
+                const uint16_t ether_type =
+                    (static_cast<uint16_t>(data[12]) << 8)
+                    | static_cast<uint16_t>(data[13]);
+
+                if (ether_type == 0x0800) {
+                    // IPv4 最小头结束位置为 34。
+                    if (header->caplen < 34) {
+                        break;
+                    }
                     std::cout << "ipv4" << std::endl;
 
                     // tcp / udp
@@ -45,12 +53,13 @@ int put_FlowKey(pcap_t* pt) {
                     }
 
                 }
-                else if ((data[12] << 8 | data[13]) == 0x86dd) {
+                else if (ether_type == 0x86dd) {
                     std::cout << "ipv6" << std::endl;
                 }
 
 
                 break;
+            }
             case -2:
                 std::cout << "包数量: " << count << std::endl;
                 pcap_close(pt);
