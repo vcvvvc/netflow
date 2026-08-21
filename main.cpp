@@ -48,6 +48,7 @@ int put_FlowKey(pcap_t* pt) {
                     }
                     else if (data[23] == 17) {
                         std::cout << "udp" << std::endl;
+                        udp_flow_key(header, data, key);
                     } else {
                         return 0;
                     }

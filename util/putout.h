@@ -7,12 +7,6 @@ struct FlowKey {
 };
 
 void tcp_flow_key(const pcap_pkthdr* header, const u_char* data, FlowKey* key) {
-
-    if (header->caplen < 15) {
-        std::cout << "invalid IPv4/TCP packet: caplen < 15" << std::endl;
-        return;
-    }
-
     const uint8_t hdr_len = static_cast<uint8_t>((data[14] & 0X0F) * 4);
     if (hdr_len < 20) {
         std::cout << "invalid IPv4 header: IHL < 5" << std::endl;
@@ -63,11 +57,6 @@ void tcp_flow_key(const pcap_pkthdr* header, const u_char* data, FlowKey* key) {
     std::cout << "proto: " << std::dec << (key->proto & 0XFF) << std::endl;
 }
 
-void put_packet_len(const pcap_pkthdr* header) {
-    //  header->caplen = 实际被 pcap 文件保存下来的长度
-    // header->len    = 这个包在线路上的原始长度
-    std::cout << "put_packet_len: " << header->caplen << std::endl;
-}
 
 int put_mac(const pcap_pkthdr*, const u_char* data) {
     const auto print_mac = [](const char* label, const u_char* mac) {
@@ -86,4 +75,8 @@ int put_mac(const pcap_pkthdr*, const u_char* data) {
     print_mac("src_mac: ", data + 6);
     std::cout << std::dec;
     return 1;
+}
+
+void udp_flow_key(const pcap_pkthdr* header, const u_char* data, FlowKey* key) {
+
 }
