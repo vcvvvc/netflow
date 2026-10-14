@@ -74,5 +74,7 @@ test/.venv/
 test/__pycache__/
 
 /AGENTS.md
+/AGENT.md
+/learn.md
 /final_plan/
 /.DS_Store
