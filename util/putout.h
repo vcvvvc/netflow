@@ -78,5 +78,28 @@ int put_mac(const pcap_pkthdr*, const u_char* data) {
 }
 
 void udp_flow_key(const pcap_pkthdr* header, const u_char* data, FlowKey* key) {
+    const uint8_t hdr_len = static_cast<uint8_t>((data[14] & 0X0F) * 4);
+    if (hdr_len < 20) {
+        std::cout << "invalid IPv4 header: IHL < 5 (header length < 20 bytes)" << std::endl;
+        return;
+    }
+    const uint16_t udp_offset = static_cast<uint16_t>(14 + hdr_len);
+    if (header->caplen < udp_offset + 8) {
+        std::cout << "truncated UDP header" << std::endl;
+        return;
+    }
 
+
+    //udp->port
+    key->src_port =
+        (static_cast<uint16_t>(data[udp_offset]) << 8)
+        | static_cast<uint16_t>(data[udp_offset + 1]);
+
+    std::cout << "src_port: " << key->src_port << std::endl;
+
+    key->dst_port =
+        (static_cast<uint16_t>(data[udp_offset + 2]) << 8)
+        | static_cast<uint16_t>(data[udp_offset + 3]);
+
+    std::cout << "udp_prot" << key->dst_port << std::endl;
 }
