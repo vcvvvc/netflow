@@ -90,16 +90,39 @@ void udp_flow_key(const pcap_pkthdr* header, const u_char* data, FlowKey* key) {
     }
 
 
-    //udp->port
+    //udp->ip/port
+    const uint32_t src_a = static_cast<uint32_t>(data[26]) << 24;
+    const uint32_t src_b = static_cast<uint32_t>(data[27]) << 16;
+    const uint32_t src_c = static_cast<uint32_t>(data[28]) << 8;
+    const uint32_t src_d = static_cast<uint32_t>(data[29]);
+    key->src_ip = src_a | src_b | src_c | src_d;
     key->src_port =
         (static_cast<uint16_t>(data[udp_offset]) << 8)
         | static_cast<uint16_t>(data[udp_offset + 1]);
 
+    std::cout << "src_ip: " << std::dec
+              << ((key->src_ip >> 24) & 0xFF) << "."
+              << ((key->src_ip >> 16) & 0xFF) << "."
+              << ((key->src_ip >> 8) & 0xFF) << "."
+              << (key->src_ip & 0xFF) << std::endl;
     std::cout << "src_port: " << key->src_port << std::endl;
 
+    const uint32_t dst_a = static_cast<uint32_t>(data[30]) << 24;
+    const uint32_t dst_b = static_cast<uint32_t>(data[31]) << 16;
+    const uint32_t dst_c = static_cast<uint32_t>(data[32]) << 8;
+    const uint32_t dst_d = static_cast<uint32_t>(data[33]);
+    key->dst_ip = dst_a | dst_b | dst_c | dst_d;
     key->dst_port =
         (static_cast<uint16_t>(data[udp_offset + 2]) << 8)
         | static_cast<uint16_t>(data[udp_offset + 3]);
 
-    std::cout << "udp_prot" << key->dst_port << std::endl;
+    std::cout << "dst_ip: " << std::dec
+              << ((key->dst_ip >> 24) & 0xFF) << "."
+              << ((key->dst_ip >> 16) & 0xFF) << "."
+              << ((key->dst_ip >> 8) & 0xFF) << "."
+              << (key->dst_ip & 0xFF) << std::endl;
+    std::cout << "udp_dst_prot" << key->dst_port << std::endl;
+
+    key->proto = static_cast<uint8_t>(data[23]);
+    std::cout << "proto: " << std::dec << (key->proto & 0XFF) << std::endl;
 }

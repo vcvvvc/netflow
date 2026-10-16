@@ -11,7 +11,7 @@
 std::string tcp_pcap_file;
 
 int put_FlowKey(pcap_t* pt) {
-    FlowKey* key = new FlowKey{};
+    auto* key = new FlowKey{};
     pcap_pkthdr* header = nullptr;
     const u_char* data = nullptr;
     bool next_ex = true;
@@ -39,6 +39,14 @@ int put_FlowKey(pcap_t* pt) {
                     }
                     std::cout << "ipv4" << std::endl;
 
+                    const uint16_t fragment_field = static_cast<uint16_t>(data[20]) << 8 | static_cast<uint16_t>(data[21]);
+                    const uint16_t fragment_offset = fragment_field & 0x1FFF;
+
+                    if (fragment_offset != 0) {
+                        std::cout << "非首片跳过解析" << std::endl;
+                        break;
+                    }
+
                     // tcp / udp
                     if ( data[23] == 6) {
                         std::cout << "tcp" << std::endl;
@@ -48,6 +56,7 @@ int put_FlowKey(pcap_t* pt) {
                     }
                     else if (data[23] == 17) {
                         std::cout << "udp" << std::endl;
+                        put_mac(header, data);
                         udp_flow_key(header, data, key);
                     } else {
                         return 0;
