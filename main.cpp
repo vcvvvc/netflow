@@ -5,7 +5,7 @@
 
 #include <pcap/pcap.h>
 
-#include "util/putout.h"
+#include "putout.h"
 
 
 std::string tcp_pcap_file;
@@ -59,7 +59,7 @@ int put_FlowKey(pcap_t* pt) {
                         put_mac(header, data);
                         udp_flow_key(header, data, key);
                     } else {
-                        return 0;
+                        break;
                     }
 
                 }
