@@ -3,9 +3,9 @@
 #include <iostream>
 #include <string>
 
-#include <pcap/pcap.h>
-
-#include "putout.h"
+// #include "putout.h"
+#include "src/PacketParser.h"
+#include "src/ParseResult.h"
 
 
 std::string tcp_pcap_file;
@@ -100,20 +100,24 @@ int main(int argc, char** argv) {
 
     char errbuf[PCAP_ERRBUF_SIZE] = {};
 
+    // 打开离线 pcap 文件，获取后续读取报文所需的句柄。
     pcap_t* pt = pcap_open_offline(tcp_pcap_file.c_str(), errbuf);
     if (pt == nullptr) {
+        // 打开失败时输出 libpcap 提供的具体原因，当前流程无法继续。
         std::cout << "pcap_open_offline() failed: " << errbuf << std::endl;
         return 1;
     }
 
+    // 查询抓包文件的链路层类型；当前解析逻辑只支持 Ethernet。
     int type = pcap_datalink(pt);
     if (type != 1) {
+        // 当前链路层不受支持，退出前释放已经打开的 pcap 句柄。
         pcap_close(pt);
         std::cerr << "pcap_datalink() failed: type != 1, type = " << type << std::endl;
         return -1;
     }
 
-    put_FlowKey(pt);
+    // put_FlowKey(pt);
 
     return 0;
 }

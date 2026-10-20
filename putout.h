@@ -1,10 +1,4 @@
-struct FlowKey {
-    uint32_t src_ip;
-    uint32_t dst_ip;
-    uint16_t src_port;
-    uint16_t dst_port;
-    uint8_t proto;
-};
+#include "src/ParseResult.h"
 
 void tcp_flow_key(const pcap_pkthdr* header, const u_char* data, FlowKey* key) {
     const uint8_t hdr_len = static_cast<uint8_t>((data[14] & 0X0F) * 4);
