@@ -99,6 +99,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    parser.parser_ex();
+
 
     // put_FlowKey(pt);
 

@@ -33,6 +33,14 @@ bool PacketParser::open_pcap_file(const std::string& pcap_file) {
     return true;
 }
 
+void PacketParser::get_tcp_flowkey(const pcap_pkthdr* header, const u_char* data) {
+
+}
+
+void PacketParser::get_udp_flowkey(const pcap_pkthdr* header, const u_char* data) {
+
+}
+
 void PacketParser::parser_ex() {
     pcap_pkthdr* header = nullptr;
     const u_char* data = nullptr;
@@ -40,24 +48,71 @@ void PacketParser::parser_ex() {
     int ex = 0;
     int count = 0;
 
-    // while (next_ex) {
-    //     ex = pcap_next_ex(pt, &header, &data);
-    //     switch (ex) {
-    //         case 1:
-    //             // Ethernet 头结束位置为 14，先保证可以读取 EtherType。
-    //             if (header->caplen < 14) {
-    //                 break;
-    //             }
-    //             std::cout << "put_packet_len: " << header->caplen << std::endl;
-    //
-    //             // 判断v4 / v6
-    //             const uint16_t ether_type =
-    //                 (static_cast<uint16_t>(data[12]) << 8)
-    //                 | static_cast<uint16_t>(data[13]);
-    //
-    //         default:
-    //             break;
-    //     }
-    // }
+    while (next_ex) {
+        ex = pcap_next_ex(pt, &header, &data);
+        switch (ex) {
+            case 1: {
+                // Ethernet 头结束位置为 14，先保证可以读取 EtherType。
+                if (header->caplen < 14) {
+                    break;
+                }
+                std::cout << "put_packet_len: " << header->caplen << std::endl;
+
+                // 判断v4 / v6
+                const uint16_t ether_type =
+                    (static_cast<uint16_t>(data[12]) << 8)
+                    | static_cast<uint16_t>(data[13]);
+
+                // EtherType 为 0x0800，表示当前 Ethernet 帧承载 IPv4 报文。
+                if (ether_type == 0x0800) {
+                    // IPv4 最小头结束位置为 34。
+                    if (header->caplen < 34) {
+                        std::cerr << "invalid Ethernet/IPv4 packet: truncated IPv4 header, caplen = "
+                                  << header->caplen << std::endl;
+                        break;
+                    }
+
+                    const uint16_t fragment_field = static_cast<uint16_t>(data[20]) << 8 | static_cast<uint16_t>(data[21]);
+                    const uint16_t fragment_offset = fragment_field & 0x1FFF;
+
+                    if (fragment_offset != 0) {
+                        std::cout << "非首片跳过解析" << std::endl;
+                        break;
+                    }
+
+                    // tcp / udp
+                    if ( data[23] == 6) {
+                        std::cout << "tcp" << std::endl;
+                        get_tcp_flowkey(header, data);
+
+                        count++;
+                    }
+                    else if (data[23] == 17) {
+                        std::cout << "udp" << std::endl;
+                    } else {
+                        break;
+                    }
+                }
+                else if (ether_type == 0x86dd) {
+                    std::cout << "ipv6" << std::endl;
+                }
+                break;
+            } //case == 1
+            case -1: {
+                const char* ss = pcap_geterr(pt);
+                std::cerr << "pcap_next_ex failed: " << ss << std::endl;
+                return;
+
+            }
+            case -2: {
+                std::cout << "包数量: " << count << std::endl;
+                return;
+
+            }
+            default: {
+                break;
+            }
+        }
+    }
 
 }

@@ -14,9 +14,11 @@ public:
 
     bool open_pcap_file(const std::string& pcap_file);
     void parser_ex();
+    void get_tcp_flowkey(const pcap_pkthdr* header, const u_char* data);
+    void get_udp_flowkey(const pcap_pkthdr* header, const u_char* data);
 
 private:
-    ParseResult* result = nullptr;
+    ParseResult result;
     char errbuf[PCAP_ERRBUF_SIZE] = {};
     pcap_t* pt = nullptr;
 };
