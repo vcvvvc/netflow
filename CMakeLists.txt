@@ -9,7 +9,8 @@ enable_testing()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 add_executable(netflow
-    main.cpp
+        main.cpp
+        src/PacketParser.cpp
 )
 
 target_compile_options(netflow PRIVATE

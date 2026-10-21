@@ -18,12 +18,7 @@ enum class ParseStatus {
     error
 };
 
-class ParseResult {
-public:
-    ParseResult();
-    ~ParseResult();
-
-private:
-    ParseStatus status;
-    FlowKey flow_key;
+struct ParseResult {
+    ParseStatus status = ParseStatus::error;
+    FlowKey flow_key{};
 };

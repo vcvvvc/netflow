@@ -1,15 +1,7 @@
-#include <iomanip>
-#include <cstring>
-#include <iostream>
-#include <string>
-
-// #include "putout.h"
 #include "src/PacketParser.h"
 #include "src/ParseResult.h"
 
-
-std::string tcp_pcap_file;
-
+/*
 int put_FlowKey(pcap_t* pt) {
     auto* key = new FlowKey{};
     pcap_pkthdr* header = nullptr;
@@ -90,32 +82,23 @@ int put_FlowKey(pcap_t* pt) {
     delete key;
     return 0;
 }
+*/
 
 int main(int argc, char** argv) {
+
     if (argc != 3 || std::strcmp(argv[1], "--read") != 0) {
         std::cout << "usage: " << argv[0] << " --read <pcap>" << std::endl;
         return -1;
     }
-    tcp_pcap_file = argv[2];
 
-    char errbuf[PCAP_ERRBUF_SIZE] = {};
+    std::string pcap_file;
+    pcap_file = argv[2];
 
-    // 打开离线 pcap 文件，获取后续读取报文所需的句柄。
-    pcap_t* pt = pcap_open_offline(tcp_pcap_file.c_str(), errbuf);
-    if (pt == nullptr) {
-        // 打开失败时输出 libpcap 提供的具体原因，当前流程无法继续。
-        std::cout << "pcap_open_offline() failed: " << errbuf << std::endl;
+    PacketParser parser;
+    if (!parser.open_pcap_file(pcap_file)) {
         return 1;
     }
 
-    // 查询抓包文件的链路层类型；当前解析逻辑只支持 Ethernet。
-    int type = pcap_datalink(pt);
-    if (type != 1) {
-        // 当前链路层不受支持，退出前释放已经打开的 pcap 句柄。
-        pcap_close(pt);
-        std::cerr << "pcap_datalink() failed: type != 1, type = " << type << std::endl;
-        return -1;
-    }
 
     // put_FlowKey(pt);
 

@@ -35,17 +35,19 @@ Demo 完成标准：
 
 ```text
 main.cpp
-  ├─ 打开 pcap
-  ├─ pcap_next_ex 读取一个报文
-  ├─ 调用 PacketParser::parse(header, data)
-  │       ↓
-  │   ParseResult
-  │       ├─ status
-  │       ├─ flow_key
-  │       └─ reason
-  ├─ success → 交给 FlowAggregator
-  ├─ skipped → 记录并跳过
-  └─ error   → 输出 reason
+  └─ PacketParser
+      ├─ open_pcap_file(path)
+      ├─ parser_ex()
+      │   ├─ pcap_next_ex 读取一个报文
+      │   └─ 调用 parse(header, data)
+      │           ↓
+      │       ParseResult
+      │           ├─ status
+      │           ├─ flow_key
+      │           └─ reason
+      ├─ success → 交给 FlowAggregator
+      ├─ skipped → 记录并跳过
+      └─ error   → 输出 reason
 ```
 
 ### `main.cpp`
@@ -53,16 +55,15 @@ main.cpp
 只负责：
 
 - 命令行参数；
-- pcap 打开、逐包读取和关闭；
-- 调用 `PacketParser`；
-- 根据 `ParseResult` 分流；
-- 把成功结果交给后续聚合器。
+- 创建 `PacketParser`；
+- 调用文件打开和处理入口；
+- 接收后续报告结果。
 
-不负责读取协议字段，不负责构造五元组。
+不负责读取 pcap 报文，不负责读取协议字段，不负责构造五元组。
 
 ### `PacketParser`
 
-只解析一个报文：
+负责 pcap 句柄生命周期和逐包读取；其中 `parse` 只解析一个报文：
 
 ```cpp
 ParseResult parse(
@@ -118,23 +119,6 @@ error：报文非法或不完整，reason 有效
 - 目的端口；
 - 协议号。
 
-## 4. 当前真实基线
-
-- `main.cpp` 仍保留旧的 pcap 读取和调试解析路径；
-- `putout.h` 中的 TCP/UDP 函数仍通过 `FlowKey*` 修改外部对象并直接打印；
-- `src/ParseResult.h` 当前还是未完成的类草稿，解析职责和结果职责尚未分离；
-- `src/ParseResult.cpp` 当前没有正确实现 `ParseResult::parse`；
-- `CMakeLists.txt` 当前只编译 `main.cpp`，尚未接入新的解析实现；
-- 最新代码当前在链接阶段失败，尚未达到可运行状态；
-- 旧版普通 IPv4 TCP/UDP、非首片和非 TCP/UDP 行为曾经验证通过，但重构后需要重新验证。
-
-当前核心问题不是析构函数，而是职责和调用链尚未接通：
-
-```text
-旧代码：main → pcap 循环 → putout.h 中直接解析和打印
-目标：  main → PacketParser::parse(单包) → ParseResult
-```
-
 ## 5. 开发切片
 
 每个切片只完成一个可验收目标；完成后停止并重新确认下一步。
@@ -143,13 +127,41 @@ error：报文非法或不完整，reason 有效
 
 只处理 TCP：
 
-- 将 `ParseResult` 改成 C++11 普通 `struct`；
-- 去掉 `ParseResult` 的解析成员函数、构造/析构占位；
+- ~~将 `ParseResult` 改成 C++11 普通 `struct`；~~
+- ~~去掉 `ParseResult` 的解析成员函数、构造/析构占位；~~
+- 在 `PacketParser::parser_ex()` 中建立 `pcap_next_ex()` 读取循环；
+- `ex == 1` 表示读到报文，`ex == -2` 表示离线文件正常结束，`ex == -1` 表示读取错误；
+- `ex == 0` 表示当前没有可读报文，离线文件通常不会出现，不能直接当作普通解析结果；
+- 使用 `header->caplen` 判断当前捕获数据是否足够，不能用 `header->len` 代替；
+- 按 Ethernet、IPv4/IPv6、IPv4 分片、TCP/UDP 顺序分类；
+- IPv6、非 TCP/UDP、IPv4 非首片在当前范围返回 `skipped`；
 - 建立 `PacketParser::parse(header, data)` 的单包入口；
 - TCP 正常报文返回 `success + FlowKey`；
 - IHL 非法或端口截断返回 `error + reason`；
 - `main` 根据结果继续或输出错误；
 - 暂不改 UDP、聚合和最终输出格式。
+
+单个报文的分类顺序：
+
+```text
+pcap_next_ex()
+  ├─ 1   → 检查 Ethernet 头长度
+  │          ↓
+  │       判断 EtherType
+  │          ├─ IPv6       → skipped
+  │          ├─ 非 IPv4    → skipped
+  │          └─ IPv4       → 检查最小头和 IHL
+  │                            ↓
+  │                         检查 IPv4 分片
+  │                            ├─ 非首片 → skipped
+  │                            └─ 首片   → 判断 TCP/UDP
+  │                                         ├─ TCP → 提取 FlowKey
+  │                                         ├─ UDP → 当前切片暂不处理
+  │                                         └─ 其他 → skipped
+  ├─ 0   → 当前没有报文，离线模式通常不会出现
+  ├─ -1  → 使用 pcap_geterr() 输出错误并结束
+  └─ -2  → 正常结束，不输出错误
+```
 
 验收：
 
@@ -226,25 +238,3 @@ error：报文非法或不完整，reason 有效
 - 构建和 CTest 通过；
 - 每类输入的状态和原因稳定；
 - README 写明构建、测试和当前限制。
-
-## 6. 当前唯一下一步
-
-只执行 **Slice 1：建立 `PacketParser` 到 `ParseResult` 的 TCP 单包链路**。
-
-在 Slice 1 完成前：
-
-- 不改 UDP；
-- 不创建 `FlowAggregator`；
-- 不加入实时抓包、线程或队列；
-- 不扩展最终输出；
-- 不提交或推送代码。
-
-## 7. 停止条件
-
-每个切片完成后必须报告：
-
-1. 本轮改变了什么；
-2. 使用了什么验证；
-3. 验证是否通过；
-4. 还有哪些范围未完成；
-5. 下一切片准备做什么，然后停止等待明确继续。
